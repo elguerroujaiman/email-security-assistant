@@ -1,0 +1,109 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-n8n}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      N8N_WEBHOOK_URL: http://localhost:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - email-security-net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: n8n-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-n8n}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: n8n
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - email-security-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: n8n-redis
+    restart: unless-stopped
+    networks:
+      - email-security-net
+
+  spamassassin:
+    image: axllent/spamassassin:latest
+    container_name: spamassassin
+    restart: unless-stopped
+    volumes:
+      - ./spamassassin-config:/etc/spamassassin:ro
+    networks:
+      - email-security-net
+
+  sa-wrapper:
+    build: ./sa-wrapper
+    container_name: sa-wrapper
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      SPAMD_HOST: spamassassin
+      SPAMD_PORT: 783
+    depends_on:
+      - spamassassin
+    networks:
+      - email-security-net
+
+  email-parser:
+    build: ./email-parser
+    container_name: email-parser
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:3002"
+    networks:
+      - email-security-net
+
+  ai-service:
+    build: ./ai-service
+    container_name: ai-service
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8000"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      EMAIL_LOGS_DB_PATH: /data/email_logs.db
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:${DASHBOARD_PORT:-3000}"
+    volumes:
+      - ai_service_data:/data
+    networks:
+      - email-security-net
+
+  dashboard:
+    build: ./dashboard
+    container_name: email-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-3000}:80"
+    depends_on:
+      - ai-service
+    networks:
+      - email-security-net
+
+networks:
+  email-security-net:
+    driver: bridge
+
+volumes:
+  n8n_data:
+  postgres_data:
+  ai_service_data:

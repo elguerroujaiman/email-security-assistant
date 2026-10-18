@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .input-base {
+    @apply h-11 w-full rounded-xl border border-line bg-field px-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-400/20;
+  }
+}
+
+:root {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  color: #0f172a;
+  background: #f1f5f9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+/* ── Sidebar ─────────────────────────────── */
+.sidebar-bg {
+  background: linear-gradient(175deg, #0f172a 0%, #1e293b 100%);
+}
+
+/* ── Custom scrollbar ─────────────────────── */
+.table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.table-scroll::-webkit-scrollbar { height: 4px; width: 4px; }
+.table-scroll::-webkit-scrollbar-track { background: transparent; }
+.table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+/* ── Stat card gradients ──────────────────── */
+.stat-total  { background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08)); border-color: rgba(99,102,241,0.2); }
+.stat-safe   { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(5,150,105,0.08));  border-color: rgba(16,185,129,0.2); }
+.stat-suspicious { background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(217,119,6,0.08)); border-color: rgba(245,158,11,0.2); }
+.stat-phishing   { background: linear-gradient(135deg, rgba(239,68,68,0.08),  rgba(220,38,38,0.08));  border-color: rgba(239,68,68,0.2); }
+
+/* ── Alert banner ────────────────────────── */
+.alert-phishing {
+  background: linear-gradient(90deg, rgba(239,68,68,0.08), transparent);
+  border-left: 3px solid #ef4444;
+}

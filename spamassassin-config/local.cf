@@ -1,0 +1,5 @@
+required_score 5.0
+report_safe 0
+add_header all Status _YESNO_, score=_SCORE_ required=_REQD_ tests=_TESTS_ autolearn=_AUTOLEARN_ version=_VERSION_
+use_bayes 1
+bayes_auto_learn 1

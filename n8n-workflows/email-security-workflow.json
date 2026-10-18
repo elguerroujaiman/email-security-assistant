@@ -1,0 +1,467 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "postProcessAction": "nothing",
+        "format": "resolved",
+        "options": {
+          "forceReconnect": 60,
+          "trackLastMessageId": true
+        }
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c8dbbe89-ca40-4024-9377-b2f8b139c41f",
+      "name": "Email Trigger (IMAP)",
+      "credentials": {
+        "imap": {
+          "id": "CZPD6fqMGeqTt45Y",
+          "name": "IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sa-wrapper:3001/check",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rawEmail",
+              "value": "={{ $json.rawEmail }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        0
+      ],
+      "id": "ff4f8043-f5b5-41dc-a7a1-efd4310b0912",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.classification}}",
+                    "rightValue": "SAFE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "567a5395-23a6-44fd-b906-044f5c1b9688"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CLEAN"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "de8539c1-226a-4190-8ec3-b646623a9450",
+                    "leftValue": "={{$json.classification}}",
+                    "rightValue": "SUSPICIOUS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "REVIEW"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a5b473b0-112a-4c17-8e61-c5981ecd9d74",
+                    "leftValue": "={{$json.classification}}",
+                    "rightValue": "PHISHING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "QUARANTINE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "0d1089b4-52bd-4f47-b8c1-9fd12f34c5e9",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json;\n  \n  // Simple ID generator (no crypto needed)\n  const simpleId = 'n8n-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);\n  \n  const messageId = j.messageId || '<' + simpleId + '@n8n>';\n  const date = j.date ? new Date(j.date).toUTCString() : new Date().toUTCString();\n  const from = j.from?.text || j.from?.value?.[0]?.address || 'unknown@localhost';\n  const to = j.to?.text || j.to?.value?.[0]?.address || 'unknown@localhost';\n  const subject = j.subject || '(no subject)';\n  const body = j.text || j.html || '';\n  \n  const headers = [\n    `Message-ID: ${messageId}`,\n    `Date: ${date}`,\n    `From: ${from}`,\n    `To: ${to}`,\n    `Subject: ${subject}`,\n    `MIME-Version: 1.0`,\n    `Content-Type: text/plain; charset=\"UTF-8\"`\n  ].join('\\r\\n');\n  \n  const rawEmail = headers + '\\r\\n\\r\\n' + body;\n  \n  results.push({\n    json: {\n      rawEmail: rawEmail,\n      subject: j.subject,\n      from: from,\n      to: to,\n      text: j.text,\n      html: j.html,\n      messageId: messageId,\n      links: extractLinks(j.text, j.html)\n    }\n  });\n}\n\nfunction extractLinks(text, html) {\n  const combined = (text || '') + ' ' + (html || '');\n  const matches = combined.match(/https?:\\/\\/[^\\s<<>\"{}|\\\\^`\\[\\]]+/g) || [];\n  const unique = [...new Set(matches)];\n  return unique.map(url => {\n    try {\n      const u = new URL(url);\n      return { url, domain: u.hostname, is_shortened: /bit\\.ly|t\\.co|tinyurl|ow\\.ly/.test(u.hostname) };\n    } catch(e) { return null; }\n  }).filter(Boolean);\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "bd818abc-30b6-40c0-8a38-0c70d7fd8175",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ai-service:8000/classify",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "subject",
+              "value": "={{$node[\"Email Trigger (IMAP)\"].json.subject}}"
+            },
+            {
+              "name": "from_email",
+              "value": "={{$node[\"Email Trigger (IMAP)\"].json.from.value[0].address}}"
+            },
+            {
+              "name": "body_text",
+              "value": "={{$node[\"Email Trigger (IMAP)\"].json.text}}"
+            },
+            {
+              "name": "links",
+              "value": "={{ [] }}"
+            },
+            {
+              "name": "attachments",
+              "value": "={{ [] }}"
+            },
+            {
+              "name": "spam_score",
+              "value": "={{$json.score}}"
+            },
+            {
+              "name": "spam_rules",
+              "value": "={{ $json.rules }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        0
+      ],
+      "id": "9b7c9f13-e50b-4b55-8dd3-78fbcba95145",
+      "name": "AI Classifier"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 1,
+        "filters": {
+          "q": "=rfc822msgid:{{$node[\"Email Trigger (IMAP)\"].json[\"messageId\"]}}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        -208
+      ],
+      "id": "9998867a-2846-44b5-9c3b-df4502e96d0d",
+      "name": "Get many messages",
+      "webhookId": "d7e916cb-50ef-49a6-9799-aea77b1b35e0",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "emp2di8m0e8U7Pyr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{$json.id}}",
+        "labelIds": [
+          "Label_6538409499372189441"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        -208
+      ],
+      "id": "8572e7ab-2e4d-44b1-a48a-8cfdbcb02012",
+      "name": "Add label to message",
+      "webhookId": "e284f6b6-d06d-49d3-ad3c-b0020909fdfa",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "emp2di8m0e8U7Pyr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 1,
+        "filters": {
+          "q": "=rfc822msgid:{{$node[\"Email Trigger (IMAP)\"].json[\"messageId\"]}}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        16
+      ],
+      "id": "cce5c750-fadf-437a-b85e-937511af4889",
+      "name": "Get many messages1",
+      "webhookId": "2406758c-efbd-44a8-addf-e8d986d63bf2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "emp2di8m0e8U7Pyr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{$json.id}}",
+        "labelIds": [
+          "Label_8986515028540926639"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1552,
+        16
+      ],
+      "id": "ee60fd14-c79b-46f2-90b1-5ecbea88013b",
+      "name": "Add label to message1",
+      "webhookId": "23a4f985-b026-4662-b2b3-1d55b178996f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "emp2di8m0e8U7Pyr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 1,
+        "filters": {
+          "q": "=rfc822msgid:{{$node[\"Email Trigger (IMAP)\"].json[\"messageId\"]}}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        224
+      ],
+      "id": "1f21dcef-3779-4c3e-9df5-22ef8c5f3f23",
+      "name": "Get many messages2",
+      "webhookId": "6c034d41-da07-4fce-8cce-eb25e301a6a6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "emp2di8m0e8U7Pyr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{$json.id}}",
+        "labelIds": [
+          "Label_8108164003825401374"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1552,
+        224
+      ],
+      "id": "a8678eb5-1338-47a0-a71d-c4f5a43dc86b",
+      "name": "Add label to message2",
+      "webhookId": "23a4f985-b026-4662-b2b3-1d55b178996f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "emp2di8m0e8U7Pyr",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Email Trigger (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "AI Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Classifier": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get many messages1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get many messages2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages1": {
+      "main": [
+        [
+          {
+            "node": "Add label to message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages2": {
+      "main": [
+        [
+          {
+            "node": "Add label to message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cea7ec44-af06-4d97-b69b-621530f011e3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "314f0384f702fff8b473656dbe5da0edce7545ddea4f1ba5e0ecae2774923bd1"
+  },
+  "nodeGroups": [],
+  "id": "UTAPLoZBVGX8O1bl",
+  "tags": []
+}

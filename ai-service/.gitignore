@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.env
+email_logs.db

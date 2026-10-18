@@ -1,0 +1,29 @@
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+
+# Node.js build/dependency output
+**/node_modules/
+**/dist/
+**/build/
+
+# Python environments and generated files
+**/.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
+
+# Local databases, logs, and runtime state
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Local-only material
+Frontend Instructions.pdf
+.DS_Store
+Thumbs.db
+
+# GPG keyring backup files
+spamassassin-config/sa-update-keys/*.kbx~
