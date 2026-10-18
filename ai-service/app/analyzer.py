@@ -6,6 +6,7 @@ from app.llm_client import analyze_with_ai
 from app.schemas import EmailAnalysisRequest, EmailAnalysisResponse
 
 
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
